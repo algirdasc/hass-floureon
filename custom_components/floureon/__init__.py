@@ -26,6 +26,7 @@ CONF_SCHEDULE = 'schedule'
 DEFAULT_SCHEDULE = 0
 DEFAULT_USE_EXTERNAL_TEMP = True
 
+
 class BroadlinkThermostat:
 
     def __init__(self, host, mac):
