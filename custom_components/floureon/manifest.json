@@ -3,6 +3,7 @@
   "name": "Floureon Thermostat",
   "documentation": "https://github.com/algirdasc/hass-floureon",
   "dependencies": [],
-  "codeowners": [],
+  "codeowners": ["@algirdasc"],
+  "issue_tracker": "https://github.com/algirdasc/hass-floureon/issues",
   "requirements": ["pythoncrc", "broadlink==0.14.0"]
 }
