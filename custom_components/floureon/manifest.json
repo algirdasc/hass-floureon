@@ -1,0 +1,8 @@
+{
+  "domain": "floureon",
+  "name": "Floureon Thermostat",
+  "documentation": "https://github.com/algirdasc/hass-floureon",
+  "dependencies": [],
+  "codeowners": [],
+  "requirements": ["pythoncrc", "broadlink==0.14.0"]
+}
