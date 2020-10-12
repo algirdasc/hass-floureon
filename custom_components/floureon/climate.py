@@ -1,3 +1,4 @@
+
 import logging
 from socket import timeout
 from typing import List, Optional
@@ -55,9 +56,9 @@ import homeassistant.helpers.config_validation as cv
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Required(CONF_HOST): cv.string,
-    vol.Required(CONF_MAC): cv.string,
+    vol.Required(CONF_HOST): cv.string,    
     vol.Required(CONF_NAME): cv.string,
+    vol.Optional(CONF_MAC): cv.string,
     vol.Optional(CONF_SCHEDULE, default=DEFAULT_SCHEDULE): vol.All(int, vol.Range(min=0,max=2)),
     vol.Optional(CONF_USE_EXTERNAL_TEMP, default=DEFAULT_USE_EXTERNAL_TEMP): cv.boolean,
 })
@@ -71,7 +72,10 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 class FloureonClimate(ClimateEntity, RestoreEntity):
 
     def __init__(self, config):
-        self._thermostat = BroadlinkThermostat(config.get(CONF_HOST), config.get(CONF_MAC))
+        if config.get(CONF_MAC) is not None:
+            _LOGGER.error("{0} option is deprecated. It will be removed in future releases. Please modify your config accordingly.".format(CONF_MAC))
+
+        self._thermostat = BroadlinkThermostat(config.get(CONF_HOST))
 
         self._name = config.get(CONF_NAME)
         self._use_external_temp = config.get(CONF_USE_EXTERNAL_TEMP)

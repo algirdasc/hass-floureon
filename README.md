@@ -11,7 +11,6 @@ If you want to use custom or more advanced controll, you should use switch compo
 | Name | Type | Default | Description |
 |------|:----:|:-------:|-------------|
 | host ***(required)*** | string | | IP or hostname of thermostat
-| mac ***(required)*** | string | | MAC address of thermostat, ex. `AB:CD:EF:00:11:22`
 | name ***(required)*** | string | | Set a custom name which is displayed beside the icon.
 | schedule | integer | `0` | Set which schedule to use (0 - `12345,67`, 1 - `123456,7`, 2 - `1234567`)
 | use_external_temp | boolen | `true` | Set to false if you want to use thermostat`s internal temperature sensor for temperature calculation
@@ -30,7 +29,6 @@ climate:
 | Name | Type | Default | Description |
 |------|:----:|:-------:|-------------|
 | host ***(required)*** | string | | IP or hostname of thermostat
-| mac ***(required)*** | string | | MAC address of thermostat, ex. `AB:CD:EF:00:11:22`
 | name ***(required)*** | string | | Set a custom name which is displayed beside the icon.
 | turn_off_mode | string | `min_temp` | Thermostat turn off. Set to `min_temp` and thermostat will be turned off by setting minimum temperature, `turn_off` - thermostat will be turned off by turning it off completely.
 | turn_on_mode | string, float | `max_temp` | Thermostat turn on mode. Set to `max_temp` - thermostat will be turned on by setting maximum temperature, `float` - thermostat will be turned on by set temperature, ex. `20.5`. ***Note, that `.5` or `.0` is mandatory ***

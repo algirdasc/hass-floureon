@@ -48,8 +48,8 @@ CONF_TURN_ON_MODE = 'turn_on_mode'
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_HOST): cv.string,
-    vol.Required(CONF_MAC): cv.string,
     vol.Required(CONF_NAME): cv.string,
+    vol.Optional(CONF_MAC): cv.string,
     vol.Optional(CONF_USE_EXTERNAL_TEMP, default=DEFAULT_USE_EXTERNAL_TEMP): cv.boolean,
     vol.Optional(CONF_TURN_OFF_MODE, default=DEFAULT_TURN_OFF_MODE): vol.Any(BROADLINK_MIN_TEMP, BROADLINK_TURN_OFF),
     vol.Optional(CONF_TURN_ON_MODE, default=DEFAULT_TURN_ON_MODE): vol.Any(float, BROADLINK_MAX_TEMP)
@@ -64,7 +64,10 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 class FloureonSwitch(SwitchDevice, RestoreEntity):
 
     def __init__(self, config):
-        self._thermostat = BroadlinkThermostat(config.get(CONF_HOST), config.get(CONF_MAC))
+        if config.get(CONF_MAC) is not None:
+            _LOGGER.error("{0} option is deprecated. It will be removed in future releases. Please modify your config accordingly.".format(CONF_MAC))
+
+        self._thermostat = BroadlinkThermostat(config.get(CONF_HOST))
 
         self._name = config.get(CONF_NAME)
 

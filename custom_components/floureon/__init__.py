@@ -29,13 +29,11 @@ DEFAULT_USE_EXTERNAL_TEMP = True
 
 class BroadlinkThermostat:
 
-    def __init__(self, host, mac):
+    def __init__(self, host):
         self._host = host
-        self._port = 80
-        self._mac = bytes.fromhex(''.join(reversed(mac.split(':'))))
 
     def device(self):
-        return broadlink.gendevice(0x4EAD, (self._host, self._port), self._mac)
+        return broadlink.hello(self._host)
 
     def thermostat_set_time(self):
         """Set thermostat time"""
