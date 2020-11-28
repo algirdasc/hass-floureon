@@ -56,7 +56,7 @@ import homeassistant.helpers.config_validation as cv
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Required(CONF_HOST): cv.string,    
+    vol.Required(CONF_HOST): cv.string,
     vol.Required(CONF_NAME): cv.string,
     vol.Optional(CONF_MAC): cv.string,
     vol.Optional(CONF_SCHEDULE, default=DEFAULT_SCHEDULE): vol.All(int, vol.Range(min=0,max=2)),
@@ -66,15 +66,17 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the generic thermostat platform."""
-    async_add_entities([FloureonClimate(config)])
+    async_add_entities([FloureonClimate(hass, config)])
 
 
 class FloureonClimate(ClimateEntity, RestoreEntity):
 
-    def __init__(self, config):
+    def __init__(self, hass, config):
         if config.get(CONF_MAC) is not None:
-            _LOGGER.error("{0} option is deprecated. It will be removed in future releases. Please modify your config accordingly.".format(CONF_MAC))
+            _LOGGER.error("{0} option is deprecated. It will be removed in future releases. "
+                          "Please modify your config accordingly.".format(CONF_MAC))
 
+        self._hass = hass
         self._thermostat = BroadlinkThermostat(config.get(CONF_HOST))
 
         self._name = config.get(CONF_NAME)
@@ -193,7 +195,7 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
         await super().async_added_to_hass()
 
         # Set thermostat time
-        self._thermostat.thermostat_set_time()
+        self._hass.async_add_executor_job(self._thermostat.set_time)
 
         # Restore
         last_state = await self.async_get_last_state()
@@ -207,38 +209,33 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
         """Set new target temperature."""
         if kwargs.get(ATTR_TEMPERATURE) is not None:
             target_temp = float(kwargs.get(ATTR_TEMPERATURE))
-            try:
-                device = self._thermostat.device()
-                if device.auth():
-                    # device.set_power(BROADLINK_POWER_ON)
-                    device.set_mode(BROADLINK_MODE_MANUAL, self._thermostat_loop_mode, self.thermostat_get_sensor())
-                    device.set_temp(target_temp)
 
-                    # Save temperatures for future use
-                    if self._preset_mode == PRESET_AWAY:
-                        self._away_setpoint = target_temp
-                    elif self._preset_mode == PRESET_NONE:
-                        self._manual_setpoint = target_temp
-            except timeout:
-                pass
+            device = self._thermostat.device()
+            if device.auth():
+                # device.set_power(BROADLINK_POWER_ON)
+                device.set_mode(BROADLINK_MODE_MANUAL, self._thermostat_loop_mode, self.thermostat_get_sensor())
+                device.set_temp(target_temp)
+
+                # Save temperatures for future use
+                if self._preset_mode == PRESET_AWAY:
+                    self._away_setpoint = target_temp
+                elif self._preset_mode == PRESET_NONE:
+                    self._manual_setpoint = target_temp
 
         await self.async_update_ha_state()
 
     async def async_set_hvac_mode(self, hvac_mode) -> None:
         """Set operation mode."""
-        try:
-            device = self._thermostat.device()
-            if device.auth():
-                if hvac_mode == HVAC_MODE_OFF:
-                    device.set_power(BROADLINK_POWER_OFF)
-                else:
-                    device.set_power(BROADLINK_POWER_ON)
-                    if hvac_mode == HVAC_MODE_AUTO:
-                        device.set_mode(BROADLINK_MODE_AUTO, self._thermostat_loop_mode, self.thermostat_get_sensor())
-                    elif hvac_mode == HVAC_MODE_HEAT:
-                        device.set_mode(BROADLINK_MODE_MANUAL, self._thermostat_loop_mode, self.thermostat_get_sensor())
-        except timeout:
-            pass
+        device = self._thermostat.device()
+        if device.auth():
+            if hvac_mode == HVAC_MODE_OFF:
+                device.set_power(BROADLINK_POWER_OFF)
+            else:
+                device.set_power(BROADLINK_POWER_ON)
+                if hvac_mode == HVAC_MODE_AUTO:
+                    device.set_mode(BROADLINK_MODE_AUTO, self._thermostat_loop_mode, self.thermostat_get_sensor())
+                elif hvac_mode == HVAC_MODE_HEAT:
+                    device.set_mode(BROADLINK_MODE_MANUAL, self._thermostat_loop_mode, self.thermostat_get_sensor())
 
         await self.async_update_ha_state()
 
@@ -246,17 +243,14 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
         """Set new preset mode."""
         self._preset_mode = preset_mode
 
-        try:
-            device = self._thermostat.device()
-            if device.auth():
-                device.set_power(BROADLINK_POWER_ON)
-                device.set_mode(BROADLINK_MODE_MANUAL, self._thermostat_loop_mode, self.thermostat_get_sensor())
-                if self._preset_mode == PRESET_AWAY:
-                    device.set_temp(self._away_setpoint)
-                elif self._preset_mode == PRESET_NONE:
-                    device.set_temp(self._manual_setpoint)
-        except timeout:
-            pass
+        device = self._thermostat.device()
+        if device.auth():
+            device.set_power(BROADLINK_POWER_ON)
+            device.set_mode(BROADLINK_MODE_MANUAL, self._thermostat_loop_mode, self.thermostat_get_sensor())
+            if self._preset_mode == PRESET_AWAY:
+                device.set_temp(self._away_setpoint)
+            elif self._preset_mode == PRESET_NONE:
+                device.set_temp(self._manual_setpoint)
 
         await self.async_update_ha_state()
 
@@ -269,8 +263,8 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
         await self.async_set_hvac_mode(HVAC_MODE_AUTO)
 
     async def async_update(self) -> None:
-        """Get thermostat info"""
-        data = self._thermostat.thermostat_read_status()
+        """Get thermostat info"""        
+        data = await self._hass.async_add_executor_job(self._thermostat.read_status)
 
         if not data:
             return

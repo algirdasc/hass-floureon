@@ -58,15 +58,17 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the platform."""
-    async_add_entities([FloureonSwitch(config)])
+    async_add_entities([FloureonSwitch(hass, config)])
 
 
 class FloureonSwitch(SwitchDevice, RestoreEntity):
 
-    def __init__(self, config):
+    def __init__(self, hass, config):
         if config.get(CONF_MAC) is not None:
-            _LOGGER.error("{0} option is deprecated. It will be removed in future releases. Please modify your config accordingly.".format(CONF_MAC))
+            _LOGGER.error("{0} option is deprecated. It will be removed in future releases. "
+                          "Please modify your config accordingly.".format(CONF_MAC))
 
+        self._hass = hass
         self._thermostat = BroadlinkThermostat(config.get(CONF_HOST))
 
         self._name = config.get(CONF_NAME)
@@ -95,39 +97,41 @@ class FloureonSwitch(SwitchDevice, RestoreEntity):
         """Return thermostat state on / off"""
         return self._state == STATE_ON
 
+    async def async_added_to_hass(self) -> None:
+        """Run when entity about to added."""
+        await super().async_added_to_hass()
+
+        # Set thermostat time
+        self._hass.async_add_executor_job(self._thermostat.set_time)
+
     async def async_turn_on(self, **kwargs) -> None:
         """Turn  the entity on"""
-        try:
-            device = self._thermostat.device()
-            if device.auth():
-                device.set_power(BROADLINK_POWER_ON)
-                device.set_mode(BROADLINK_MODE_MANUAL, 0, self.thermostat_get_sensor())
-                device.set_temp(self._max_temp if self._turn_on_mode == BROADLINK_MAX_TEMP else self._turn_on_mode)
-        except timeout:
-            pass
+        device = self._thermostat.device()
+        if device.auth():
+            device.set_power(BROADLINK_POWER_ON)
+            device.set_mode(BROADLINK_MODE_MANUAL, 0, self.thermostat_get_sensor())
+            device.set_temp(self._max_temp if self._turn_on_mode == BROADLINK_MAX_TEMP else self._turn_on_mode)
 
         self._state = STATE_ON
         await self.async_update_ha_state()
 
     async def async_turn_off(self, **kwargs) -> None:
         """Turn the entity off"""
-        try:
-            device = self._thermostat.device()
-            if device.auth():
-                if self._turn_off_mode == BROADLINK_TURN_OFF:
-                    device.set_power(BROADLINK_POWER_OFF)
-                else:
-                    device.set_mode(BROADLINK_MODE_MANUAL, 0, self.thermostat_get_sensor())
-                    device.set_temp(self._min_temp)                
-        except timeout:
-            pass
+        device = self._thermostat.device()
+        if device.auth():
+            if self._turn_off_mode == BROADLINK_TURN_OFF:
+                device.set_power(BROADLINK_POWER_OFF)
+            else:
+                device.set_mode(BROADLINK_MODE_MANUAL, 0, self.thermostat_get_sensor())
+                device.set_temp(self._min_temp)
 
         self._state = STATE_OFF
         await self.async_update_ha_state()
 
     async def async_update(self) -> None:
         """Get thermostat info"""
-        data = self._thermostat.thermostat_read_status()
+        data = await self._hass.async_add_executor_job(self._thermostat.read_status)
+
         if not data:
             self._state = STATE_UNAVAILABLE
             return
