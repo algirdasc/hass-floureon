@@ -32,15 +32,16 @@ class BroadlinkThermostat:
 
     def __init__(self, host):
         self._host = host
-
+        
     def device(self):
         max_attempt = 3
         for attempt in range(0, max_attempt):
             if attempt > 0:
-                time.sleep(1)
+                time.sleep(0.1)
             try:
                 attempt += 1
-                return broadlink.hello(self._host)
+                broadlink.timeout = 1
+                return broadlink.hello(self._host, timeout=3)
             except broadlink.exceptions.NetworkTimeoutError:
                 if attempt == max_attempt:                                    
                     raise
