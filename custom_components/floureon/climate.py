@@ -182,7 +182,7 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
                                    self.temperature_unit)
 
     @property
-    def device_state_attributes(self) -> dict:
+    def extra_state_attributes(self) -> dict:
         """Return the attribute(s) of the sensor"""
         return {
             'away_setpoint': self._away_setpoint,
