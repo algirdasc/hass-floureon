@@ -2,7 +2,7 @@ from socket import timeout
 from custom_components.floureon import (
     BroadlinkThermostat,
     CONF_HOST,
-    CONF_MAC,
+    CONF_UNIQUE_ID,
     CONF_USE_EXTERNAL_TEMP,
     CONF_USE_EXTERNAL_TEMP,
     DEFAULT_SCHEDULE,
@@ -51,7 +51,7 @@ CONF_TURN_ON_MODE = 'turn_on_mode'
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_HOST): cv.string,
     vol.Required(CONF_NAME): cv.string,
-    vol.Optional(CONF_MAC): cv.string,
+    vol.Optional(CONF_UNIQUE_ID): cv.string,
     vol.Optional(CONF_USE_EXTERNAL_TEMP, default=DEFAULT_USE_EXTERNAL_TEMP): cv.boolean,
     vol.Optional(CONF_TURN_OFF_MODE, default=DEFAULT_TURN_OFF_MODE): vol.Any(BROADLINK_MIN_TEMP, BROADLINK_TURN_OFF),
     vol.Optional(CONF_TURN_ON_MODE, default=DEFAULT_TURN_ON_MODE): vol.Any(float, BROADLINK_MAX_TEMP)
@@ -66,10 +66,6 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 class FloureonSwitch(SwitchEntity, RestoreEntity):
 
     def __init__(self, hass, config):
-        if config.get(CONF_MAC) is not None:
-            _LOGGER.error("{0} option is deprecated. It will be removed in future releases. "
-                          "Please modify your config accordingly.".format(CONF_MAC))
-
         self._hass = hass
         self._thermostat = BroadlinkThermostat(config.get(CONF_HOST))
 
@@ -82,6 +78,9 @@ class FloureonSwitch(SwitchEntity, RestoreEntity):
         self._turn_on_mode = config.get(CONF_TURN_ON_MODE)
         self._turn_off_mode = config.get(CONF_TURN_OFF_MODE)
         self._use_external_temp = config.get(CONF_USE_EXTERNAL_TEMP)
+
+        self._attr_name = self._name
+        self._attr_unique_id = config.get(CONF_UNIQUE_ID)
 
         self._state = STATE_UNAVAILABLE
 
