@@ -21,7 +21,6 @@ If you want to use custom or more advanced controll, you should use switch compo
 climate:
   platform: floureon
   name: livingroom_floor
-  mac: 78:0f:77:00:00:00
   host: 192.168.0.1
   use_external_temp: false
 ```
@@ -40,7 +39,6 @@ climate:
 switch:
   platform: floureon
   name: livingroom_floor
-  mac: 78:0f:77:00:00:00
   host: 192.168.0.1
   turn_off_mode: min_temp
   turn_on_mode: 23.5
