@@ -27,7 +27,8 @@ from custom_components.floureon import (
 
 from homeassistant.components.climate import ClimateEntity, PLATFORM_SCHEMA
 from homeassistant.helpers.restore_state import RestoreEntity
-from homeassistant.util.unit_conversion import TemperatureConverter
+# Unused until HA 2023.4
+# from homeassistant.util.unit_conversion import TemperatureConverter
 from homeassistant.components.climate.const import (
     HVAC_MODE_OFF,
     HVAC_MODE_HEAT,
@@ -168,16 +169,24 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
         """Return the list of supported features."""
         return SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
 
+    # Backward compatibility until 2023.4
+    def get_converter(self):
+        try:
+            from homeassistant.util.unit_conversion.TemperatureConverter import convert
+        except ModuleNotFoundError or ImportError as ee:
+            from homeassistant.util.temperature import convert
+        return convert
+
     @property
     def min_temp(self) -> float:
         """Return the minimum temperature."""
-        return TemperatureConverter.convert(self._min_temp, TEMP_CELSIUS,
+        return self.get_converter()(self._min_temp, TEMP_CELSIUS,
                                    self.temperature_unit)
 
     @property
     def max_temp(self) -> float:
         """Return the maximum temperature."""
-        return TemperatureConverter.convert(self._max_temp, TEMP_CELSIUS,
+        return self.get_converter()(self._max_temp, TEMP_CELSIUS,
                                    self.temperature_unit)
 
     @property
