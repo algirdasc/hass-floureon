@@ -172,7 +172,8 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
     # Backward compatibility until 2023.4
     def get_converter(self):
         try:
-            from homeassistant.util.unit_conversion.TemperatureConverter import convert
+            from homeassistant.util.unit_conversion import TemperatureConverter
+            convert = TemperatureConverter.convert
         except ModuleNotFoundError or ImportError as ee:
             from homeassistant.util.temperature import convert
         return convert
