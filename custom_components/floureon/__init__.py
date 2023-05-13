@@ -2,8 +2,11 @@ import broadlink
 import logging
 import time
 from datetime import datetime
-from socket import timeout
 
+
+from homeassistant.const import (
+    PRECISION_HALVES
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,9 +26,11 @@ CONF_HOST = 'host'
 CONF_USE_EXTERNAL_TEMP = 'use_external_temp'
 CONF_SCHEDULE = 'schedule'
 CONF_UNIQUE_ID = 'unique_id'
+CONF_PRECISION = 'precision'
 
 DEFAULT_SCHEDULE = 0
 DEFAULT_USE_EXTERNAL_TEMP = True
+DEFAULT_PRECISION = PRECISION_HALVES
 
 
 class BroadlinkThermostat:
@@ -42,9 +47,9 @@ class BroadlinkThermostat:
                 attempt += 1
                 broadlink.timeout = 1
                 return broadlink.hello(self._host, timeout=3)
-            except broadlink.exceptions.NetworkTimeoutError:
-                if attempt == max_attempt:                                    
-                    raise
+            except broadlink.exceptions.NetworkTimeoutError as e:
+                if attempt == max_attempt:
+                    _LOGGER.error("Thermostat %s network error: %s", self._host, str(e))
 
     def set_time(self):
         """Set thermostat time"""
@@ -55,7 +60,8 @@ class BroadlinkThermostat:
                 device.set_time(now.hour,
                                 now.minute,
                                 now.second,
-                                now.weekday() + 1)        
+                                now.weekday() + 1)
+                _LOGGER.debug("Thermostat date / time is set")
         except Exception as e:
             _LOGGER.error("Thermostat %s set_time error: %s", self._host, str(e))
 
@@ -66,7 +72,8 @@ class BroadlinkThermostat:
             device = self.device()
             if device.auth():
                 data = device.get_full_status()
+                _LOGGER.debug("Received thermostat data: %s", data)
         except Exception as e:
-            _LOGGER.warning("Thermostat %s read_status error: %s", self._host, str(e))
+            _LOGGER.warning("Thermostat %s read_status() error: %s", self._host, str(e))
         finally:
             return data

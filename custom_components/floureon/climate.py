@@ -1,6 +1,5 @@
 
 import logging
-from socket import timeout
 from typing import List, Optional
 
 import voluptuous as vol
@@ -11,8 +10,10 @@ from custom_components.floureon import (
     CONF_USE_EXTERNAL_TEMP,
     CONF_SCHEDULE,
     CONF_UNIQUE_ID,
+    CONF_PRECISION,
     DEFAULT_SCHEDULE,
     DEFAULT_USE_EXTERNAL_TEMP,
+    DEFAULT_PRECISION,
     BROADLINK_ACTIVE,
     BROADLINK_IDLE,
     BROADLINK_POWER_ON,
@@ -46,8 +47,8 @@ from homeassistant.components.climate.const import (
 
 from homeassistant.const import (
     PRECISION_HALVES,
+    PRECISION_WHOLE,
     ATTR_TEMPERATURE,
-    PRECISION_HALVES,
     TEMP_CELSIUS,
     CONF_NAME
 )
@@ -62,8 +63,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_HOST): cv.string,
     vol.Required(CONF_NAME): cv.string,
     vol.Optional(CONF_UNIQUE_ID): cv.string,
-    vol.Optional(CONF_SCHEDULE, default=DEFAULT_SCHEDULE): vol.All(int, vol.Range(min=0,max=2)),
+    vol.Optional(CONF_SCHEDULE, default=DEFAULT_SCHEDULE): vol.All(int, vol.Range(min=0, max=2)),
     vol.Optional(CONF_USE_EXTERNAL_TEMP, default=DEFAULT_USE_EXTERNAL_TEMP): cv.boolean,
+    vol.Optional(CONF_PRECISION, default=DEFAULT_PRECISION): vol.In([PRECISION_HALVES, PRECISION_WHOLE]),
 })
 
 
@@ -85,6 +87,7 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
         self._max_temp = DEFAULT_MAX_TEMP
         self._room_temp = None
         self._external_temp = None
+        self._precision = config.get(CONF_PRECISION)
 
         self._away_setpoint = DEFAULT_MIN_TEMP
         self._manual_setpoint = DEFAULT_MIN_TEMP
@@ -112,7 +115,7 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
     @property
     def precision(self) -> float:
         """Return the precision of the system."""
-        return PRECISION_HALVES
+        return self._precision
 
     @property
     def temperature_unit(self) -> str:
