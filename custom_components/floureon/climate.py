@@ -11,9 +11,11 @@ from custom_components.floureon import (
     CONF_SCHEDULE,
     CONF_UNIQUE_ID,
     CONF_PRECISION,
+    CONF_USE_COOLING,
     DEFAULT_SCHEDULE,
     DEFAULT_USE_EXTERNAL_TEMP,
     DEFAULT_PRECISION,
+    DEFAULT_USE_COOLING,
     BROADLINK_ACTIVE,
     BROADLINK_IDLE,
     BROADLINK_POWER_ON,
@@ -26,19 +28,18 @@ from custom_components.floureon import (
     BROADLINK_TEMP_MANUAL
 )
 
-from homeassistant.components.climate import ClimateEntity, ClimateEntityFeature, PLATFORM_SCHEMA
+from homeassistant.components.climate import (
+    ClimateEntity,
+    HVACMode,
+    HVACAction,
+    ClimateEntityFeature,
+    PLATFORM_SCHEMA
+)
+
 from homeassistant.helpers.restore_state import RestoreEntity
 # Unused until HA 2023.4
 # from homeassistant.util.unit_conversion import TemperatureConverter
 from homeassistant.components.climate.const import (
-    HVAC_MODE_OFF,
-    HVAC_MODE_HEAT,
-    HVAC_MODE_AUTO,
-    HVAC_MODE_COOL,
-    CURRENT_HVAC_OFF,
-    CURRENT_HVAC_HEAT,
-    CURRENT_HVAC_IDLE,
-    CURRENT_HVAC_COOL,
     PRESET_NONE,
     PRESET_AWAY,
     DEFAULT_MIN_TEMP,
@@ -66,6 +67,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_SCHEDULE, default=DEFAULT_SCHEDULE): vol.All(int, vol.Range(min=0, max=2)),
     vol.Optional(CONF_USE_EXTERNAL_TEMP, default=DEFAULT_USE_EXTERNAL_TEMP): cv.boolean,
     vol.Optional(CONF_PRECISION, default=DEFAULT_PRECISION): vol.In([PRECISION_HALVES, PRECISION_WHOLE]),
+    vol.Optional(CONF_USE_COOLING, default=DEFAULT_USE_COOLING): cv.boolean
 })
 
 
@@ -82,15 +84,17 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
 
         self._name = config.get(CONF_NAME)
         self._use_external_temp = config.get(CONF_USE_EXTERNAL_TEMP)
+        self._use_cooling = config.get(CONF_USE_COOLING)
 
         self._min_temp = DEFAULT_MIN_TEMP
         self._max_temp = DEFAULT_MAX_TEMP
+        self._hysteresis = None
         self._room_temp = None
         self._external_temp = None
         self._precision = config.get(CONF_PRECISION)
 
-        self._away_setpoint = DEFAULT_MIN_TEMP
-        self._manual_setpoint = DEFAULT_MIN_TEMP
+        self._away_set_point = DEFAULT_MIN_TEMP
+        self._manual_set_point = DEFAULT_MIN_TEMP
 
         self._preset_mode = None
 
@@ -125,21 +129,24 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
     @property
     def hvac_mode(self) -> str:
         """Return hvac operation i.e. heat, cool mode.
-        Need to be one of HVAC_MODE_*.
+        Need to be one of HVACMode.
         """
         return self._thermostat_current_mode
 
     @property
     def hvac_modes(self) -> List[str]:
         """Return the list of available hvac operation modes.
-        Need to be a subset of HVAC_MODES.
+        Need to be a subset of HVACMode.
         """
-        return [HVAC_MODE_AUTO, HVAC_MODE_HEAT, HVAC_MODE_COOL, HVAC_MODE_OFF]
+        if self._use_cooling is True:
+            return [HVACMode.AUTO, HVACMode.HEAT_COOL, HVACMode.OFF]
+
+        return [HVACMode.AUTO, HVACMode.HEAT, HVACMode.OFF]
 
     @property
     def hvac_action(self) -> Optional[str]:
         """Return the current running hvac operation if supported.
-        Need to be one of CURRENT_HVAC_*.
+        Need to be one of HVACAction.
         """
         return self._thermostat_current_action
 
@@ -185,20 +192,20 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
     def min_temp(self) -> float:
         """Return the minimum temperature."""
         return self.get_converter()(self._min_temp, TEMP_CELSIUS,
-                                   self.temperature_unit)
+                                    self.temperature_unit)
 
     @property
     def max_temp(self) -> float:
         """Return the maximum temperature."""
         return self.get_converter()(self._max_temp, TEMP_CELSIUS,
-                                   self.temperature_unit)
+                                    self.temperature_unit)
 
     @property
     def extra_state_attributes(self) -> dict:
         """Return the attribute(s) of the sensor"""
         return {
-            'away_setpoint': self._away_setpoint,
-            'manual_setpoint': self._manual_setpoint,
+            'away_set_point': self._away_set_point,
+            'manual_set_point': self._manual_set_point,
             'external_temp': self._external_temp,
             'room_temp': self._room_temp,
             'loop_mode': self._thermostat_loop_mode
@@ -215,7 +222,7 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
         last_state = await self.async_get_last_state()
 
         if last_state is not None:
-            for param in ['away_setpoint', 'manual_setpoint']:
+            for param in ['away_set_point', 'manual_set_point']:
                 if param in last_state.attributes:
                     setattr(self, '_{0}'.format(param), last_state.attributes[param])
 
@@ -232,26 +239,26 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
 
                 # Save temperatures for future use
                 if self._preset_mode == PRESET_AWAY:
-                    self._away_setpoint = target_temp
+                    self._away_set_point = target_temp
                 elif self._preset_mode == PRESET_NONE:
-                    self._manual_setpoint = target_temp
+                    self._manual_set_point = target_temp
 
-        await self.async_update_ha_state()
+        self.async_write_ha_state()
 
     async def async_set_hvac_mode(self, hvac_mode) -> None:
         """Set operation mode."""
         device = self._thermostat.device()
         if device.auth():
-            if hvac_mode == HVAC_MODE_OFF:
+            if hvac_mode == HVACMode.OFF:
                 device.set_power(BROADLINK_POWER_OFF)
             else:
                 device.set_power(BROADLINK_POWER_ON)
-                if hvac_mode == HVAC_MODE_AUTO:
+                if hvac_mode == HVACMode.AUTO:
                     device.set_mode(BROADLINK_MODE_AUTO, self._thermostat_loop_mode, self.thermostat_get_sensor())
-                elif hvac_mode == HVAC_MODE_HEAT:
+                elif hvac_mode == HVACMode.HEAT or hvac_mode == HVACMode.HEAT_COOL:
                     device.set_mode(BROADLINK_MODE_MANUAL, self._thermostat_loop_mode, self.thermostat_get_sensor())
 
-        await self.async_update_ha_state()
+        self.async_write_ha_state()
 
     async def async_set_preset_mode(self, preset_mode) -> None:
         """Set new preset mode."""
@@ -262,22 +269,22 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
             device.set_power(BROADLINK_POWER_ON)
             device.set_mode(BROADLINK_MODE_MANUAL, self._thermostat_loop_mode, self.thermostat_get_sensor())
             if self._preset_mode == PRESET_AWAY:
-                device.set_temp(self._away_setpoint)
+                device.set_temp(self._away_set_point)
             elif self._preset_mode == PRESET_NONE:
-                device.set_temp(self._manual_setpoint)
+                device.set_temp(self._manual_set_point)
 
-        await self.async_update_ha_state()
+        self.async_write_ha_state()
 
     async def async_turn_off(self) -> None:
         """Turn thermostat off"""
-        await self.async_set_hvac_mode(HVAC_MODE_OFF)
+        await self.async_set_hvac_mode(HVACMode.OFF)
 
     async def async_turn_on(self) -> None:
         """Turn thermostat on"""
-        await self.async_set_hvac_mode(HVAC_MODE_AUTO)
+        await self.async_set_hvac_mode(HVACMode.AUTO)
 
     async def async_update(self) -> None:
-        """Get thermostat info"""        
+        """Get thermostat info"""
         data = await self._hass.async_add_executor_job(self._thermostat.read_status)
 
         if not data:
@@ -289,7 +296,7 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
 
         self._thermostat_current_temp = data['external_temp'] if self._use_external_temp else data['room_temp']
 
-        # self._hysteresis = int(data['dif'])
+        self._hysteresis = int(data['dif'])
         self._min_temp = int(data['svl'])
         self._max_temp = int(data['svh'])
         self._thermostat_target_temp = data['thermostat_temp']
@@ -298,23 +305,34 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
         if data["power"] == BROADLINK_POWER_OFF:
             # Unset away mode
             self._preset_mode = PRESET_NONE
-            self._thermostat_current_mode = HVAC_MODE_OFF
+            self._thermostat_current_mode = HVACMode.OFF
         else:
             # Set mode to manual when overridden auto mode or thermostat is in manual mode
             if data["auto_mode"] == BROADLINK_MODE_MANUAL or data['temp_manual'] == BROADLINK_TEMP_MANUAL:
-                self._thermostat_current_mode = HVAC_MODE_HEAT
+                if self._use_cooling is True:
+                    self._thermostat_current_mode = HVACMode.HEAT_COOL
+                else:
+                    self._thermostat_current_mode = HVACMode.HEAT
             else:
                 # Unset away mode
                 self._preset_mode = PRESET_NONE
-                self._thermostat_current_mode = HVAC_MODE_AUTO
+                self._thermostat_current_mode = HVACMode.AUTO
 
         # Thermostat action
         if data["power"] == BROADLINK_POWER_ON and data["active"] == BROADLINK_ACTIVE:
-            if data["thermostat_temp"] <= self._thermostat_current_temp:
-                self._thermostat_current_action = CURRENT_HVAC_COOL
+            if self._use_cooling is True:
+                if self._thermostat_target_temp + self._hysteresis < self._thermostat_current_temp:
+                    self._thermostat_current_action = HVACAction.COOLING
+                else:
+                    self._thermostat_current_action = HVACAction.HEATING
             else:
-                self._thermostat_current_action = CURRENT_HVAC_HEAT
+                self._thermostat_current_action = HVACAction.HEATING
         elif data["power"] == BROADLINK_POWER_ON and data["active"] == BROADLINK_IDLE:
-            self._thermostat_current_action = CURRENT_HVAC_IDLE
+            self._thermostat_current_action = HVACAction.IDLE
         elif data["power"] == BROADLINK_POWER_OFF:
-            self._thermostat_current_action = CURRENT_HVAC_OFF
+            self._thermostat_current_action = HVACAction.OFF
+
+        _LOGGER.debug(
+            "Thermostat %s action=%s mode=%s",
+            self._name, self._thermostat_current_action, self._thermostat_current_mode
+        )

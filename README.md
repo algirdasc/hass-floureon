@@ -16,6 +16,7 @@ If you want to use custom or more advanced controll, you should use switch compo
 | schedule              | integer |   `0`   | Set which schedule to use (`0` - `12345,67`, `1` - `123456,7`, `2` - `1234567`)                      |
 | use_external_temp     | boolen  | `true`  | Set to false if you want to use thermostat`s internal temperature sensor for temperature calculation |
 | precision             |  float  |   0.5   | Set temperature precision `1.0` or `0.5`                                                             |
+| use_cooling           | boolean | `false` | Set to `true` if your thermostat has cooling function                                                |
 
 #### Example:
 ```yaml

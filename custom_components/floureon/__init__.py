@@ -3,7 +3,6 @@ import logging
 import time
 from datetime import datetime
 
-
 from homeassistant.const import (
     PRECISION_HALVES
 )
@@ -27,17 +26,19 @@ CONF_USE_EXTERNAL_TEMP = 'use_external_temp'
 CONF_SCHEDULE = 'schedule'
 CONF_UNIQUE_ID = 'unique_id'
 CONF_PRECISION = 'precision'
+CONF_USE_COOLING = 'use_cooling'
 
 DEFAULT_SCHEDULE = 0
 DEFAULT_USE_EXTERNAL_TEMP = True
 DEFAULT_PRECISION = PRECISION_HALVES
+DEFAULT_USE_COOLING = False
 
 
 class BroadlinkThermostat:
 
     def __init__(self, host):
         self._host = host
-        
+
     def device(self):
         max_attempt = 3
         for attempt in range(0, max_attempt):
@@ -72,7 +73,7 @@ class BroadlinkThermostat:
             device = self.device()
             if device.auth():
                 data = device.get_full_status()
-                _LOGGER.debug("Received thermostat data: %s", data)
+                _LOGGER.debug("Received %s thermostat data: %s", self._host, data)
         except Exception as e:
             _LOGGER.warning("Thermostat %s read_status() error: %s", self._host, str(e))
         finally:
