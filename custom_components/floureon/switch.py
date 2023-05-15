@@ -137,8 +137,12 @@ class FloureonSwitch(SwitchEntity, RestoreEntity):
             self._state = STATE_UNAVAILABLE
             return
 
+        if data['power'] == BROADLINK_POWER_ON and data['active'] == BROADLINK_ACTIVE:
+            self._state = STATE_ON
+        else:
+            self._state = STATE_OFF
+
         self._min_temp = int(data['svl'])
         self._max_temp = int(data['svh'])
-        self._state = STATE_ON if data['power'] == BROADLINK_POWER_ON and data['active'] == BROADLINK_ACTIVE else STATE_OFF
         self._thermostat_current_temp = data['external_temp'] if self._use_external_temp else data['room_temp']
 

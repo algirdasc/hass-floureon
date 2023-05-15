@@ -26,7 +26,7 @@ from custom_components.floureon import (
     BROADLINK_TEMP_MANUAL
 )
 
-from homeassistant.components.climate import ClimateEntity, PLATFORM_SCHEMA
+from homeassistant.components.climate import ClimateEntity, ClimateEntityFeature, PLATFORM_SCHEMA
 from homeassistant.helpers.restore_state import RestoreEntity
 # Unused until HA 2023.4
 # from homeassistant.util.unit_conversion import TemperatureConverter
@@ -34,13 +34,13 @@ from homeassistant.components.climate.const import (
     HVAC_MODE_OFF,
     HVAC_MODE_HEAT,
     HVAC_MODE_AUTO,
+    HVAC_MODE_COOL,
     CURRENT_HVAC_OFF,
     CURRENT_HVAC_HEAT,
     CURRENT_HVAC_IDLE,
+    CURRENT_HVAC_COOL,
     PRESET_NONE,
     PRESET_AWAY,
-    SUPPORT_TARGET_TEMPERATURE,
-    SUPPORT_PRESET_MODE,
     DEFAULT_MIN_TEMP,
     DEFAULT_MAX_TEMP
 )
@@ -124,7 +124,7 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
 
     @property
     def hvac_mode(self) -> str:
-        """Return hvac operation ie. heat, cool mode.
+        """Return hvac operation i.e. heat, cool mode.
         Need to be one of HVAC_MODE_*.
         """
         return self._thermostat_current_mode
@@ -134,7 +134,7 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
         """Return the list of available hvac operation modes.
         Need to be a subset of HVAC_MODES.
         """
-        return [HVAC_MODE_AUTO, HVAC_MODE_HEAT, HVAC_MODE_OFF]
+        return [HVAC_MODE_AUTO, HVAC_MODE_HEAT, HVAC_MODE_COOL, HVAC_MODE_OFF]
 
     @property
     def hvac_action(self) -> Optional[str]:
@@ -146,14 +146,14 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
     @property
     def preset_mode(self) -> Optional[str]:
         """Return the current preset mode, e.g., home, away, temp.
-        Requires SUPPORT_PRESET_MODE.
+        Requires ClimateEntityFeature.PRESET_MODE.
         """
         return self._preset_mode
 
     @property
     def preset_modes(self) -> Optional[List[str]]:
         """Return a list of available preset modes.
-        Requires SUPPORT_PRESET_MODE.
+        Requires ClimateEntityFeature.PRESET_MODE.
         """
         return [PRESET_NONE, PRESET_AWAY]
 
@@ -170,7 +170,7 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
     @property
     def supported_features(self):
         """Return the list of supported features."""
-        return SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
+        return ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
 
     # Backward compatibility until 2023.4
     def get_converter(self):
@@ -310,7 +310,10 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
 
         # Thermostat action
         if data["power"] == BROADLINK_POWER_ON and data["active"] == BROADLINK_ACTIVE:
-            self._thermostat_current_action = CURRENT_HVAC_HEAT
+            if data["thermostat_temp"] <= self._thermostat_current_temp:
+                self._thermostat_current_action = CURRENT_HVAC_COOL
+            else:
+                self._thermostat_current_action = CURRENT_HVAC_HEAT
         elif data["power"] == BROADLINK_POWER_ON and data["active"] == BROADLINK_IDLE:
             self._thermostat_current_action = CURRENT_HVAC_IDLE
         elif data["power"] == BROADLINK_POWER_OFF:
