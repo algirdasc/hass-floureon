@@ -24,7 +24,6 @@ from homeassistant.components.switch import SwitchEntity, PLATFORM_SCHEMA
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.const import (
     CONF_NAME,
-    CONF_PLATFORM,
     STATE_UNAVAILABLE,
     STATE_ON,
     STATE_OFF
@@ -53,8 +52,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_NAME): cv.string,
     vol.Optional(CONF_UNIQUE_ID): cv.string,
     vol.Optional(CONF_USE_EXTERNAL_TEMP, default=DEFAULT_USE_EXTERNAL_TEMP): cv.boolean,
-    vol.Optional(CONF_TURN_OFF_MODE, default=DEFAULT_TURN_OFF_MODE): vol.Any(BROADLINK_MIN_TEMP, BROADLINK_TURN_OFF),
-    vol.Optional(CONF_TURN_ON_MODE, default=DEFAULT_TURN_ON_MODE): vol.Any(float, BROADLINK_MAX_TEMP)
+    vol.Optional(CONF_TURN_OFF_MODE, default=DEFAULT_TURN_OFF_MODE): vol.Any(int, float, BROADLINK_MIN_TEMP, BROADLINK_TURN_OFF),
+    vol.Optional(CONF_TURN_ON_MODE, default=DEFAULT_TURN_ON_MODE): vol.Any(int, float, BROADLINK_MAX_TEMP)
 })
 
 
@@ -70,14 +69,22 @@ class FloureonSwitch(SwitchEntity, RestoreEntity):
         self._thermostat = BroadlinkThermostat(config.get(CONF_HOST))
 
         self._name = config.get(CONF_NAME)
+        self._use_external_temp = config.get(CONF_USE_EXTERNAL_TEMP)
 
         self._min_temp = DEFAULT_MIN_TEMP
         self._max_temp = DEFAULT_MAX_TEMP
-        self._thermostat_current_temp = None
+        self._room_temp = None
+        self._external_temp = None
 
         self._turn_on_mode = config.get(CONF_TURN_ON_MODE)
         self._turn_off_mode = config.get(CONF_TURN_OFF_MODE)
-        self._use_external_temp = config.get(CONF_USE_EXTERNAL_TEMP)
+
+        if not isinstance(self._turn_off_mode, str) and not isinstance(self._turn_on_mode, str) and self._turn_off_mode > self._turn_on_mode:
+            _LOGGER.error("Turn off mode is greater than turn on mode, defaulting to \"min_temp\"")
+            self._turn_off_mode = BROADLINK_MIN_TEMP
+
+        self._thermostat_current_temp = None
+        self._thermostat_target_temp = None
 
         self._attr_name = self._name
         self._attr_unique_id = config.get(CONF_UNIQUE_ID)
@@ -98,6 +105,16 @@ class FloureonSwitch(SwitchEntity, RestoreEntity):
         """Return thermostat state on / off"""
         return self._state == STATE_ON
 
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Return the attribute(s) of the sensor"""
+        return {
+            'external_temp': self._external_temp,
+            'room_temp': self._room_temp,
+            'current_temp': self._thermostat_current_temp,
+            'target_temp': self._thermostat_target_temp
+        }
+
     async def async_added_to_hass(self) -> None:
         """Run when entity about to added."""
         await super().async_added_to_hass()
@@ -111,7 +128,7 @@ class FloureonSwitch(SwitchEntity, RestoreEntity):
         if device.auth():
             device.set_power(BROADLINK_POWER_ON)
             device.set_mode(BROADLINK_MODE_MANUAL, 0, self.thermostat_get_sensor())
-            device.set_temp(self._max_temp if self._turn_on_mode == BROADLINK_MAX_TEMP else self._turn_on_mode)
+            device.set_temp(self._max_temp if self._turn_on_mode == BROADLINK_MAX_TEMP else float(self._turn_on_mode))
 
         self._state = STATE_ON
         await self.async_update_ha_state()
@@ -124,7 +141,7 @@ class FloureonSwitch(SwitchEntity, RestoreEntity):
                 device.set_power(BROADLINK_POWER_OFF)
             else:
                 device.set_mode(BROADLINK_MODE_MANUAL, 0, self.thermostat_get_sensor())
-                device.set_temp(self._min_temp)
+                device.set_temp(self._min_temp if self._turn_off_mode == BROADLINK_MIN_TEMP else float(self._turn_off_mode))
 
         self._state = STATE_OFF
         await self.async_update_ha_state()
@@ -142,7 +159,12 @@ class FloureonSwitch(SwitchEntity, RestoreEntity):
         else:
             self._state = STATE_OFF
 
+        self._room_temp = data['room_temp']
+        self._external_temp = data['external_temp']
+
+        self._thermostat_current_temp = data['external_temp'] if self._use_external_temp else data['room_temp']
+        self._thermostat_target_temp = data['thermostat_temp']
+
         self._min_temp = int(data['svl'])
         self._max_temp = int(data['svh'])
-        self._thermostat_current_temp = data['external_temp'] if self._use_external_temp else data['room_temp']
 

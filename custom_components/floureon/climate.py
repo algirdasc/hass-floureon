@@ -208,6 +208,8 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
             'manual_set_point': self._manual_set_point,
             'external_temp': self._external_temp,
             'room_temp': self._room_temp,
+            'current_temp': self._thermostat_current_temp,
+            'target_temp': self._thermostat_target_temp,
             'loop_mode': self._thermostat_loop_mode
         }
 
@@ -294,12 +296,12 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
         self._room_temp = data['room_temp']
         self._external_temp = data['external_temp']
 
-        self._thermostat_current_temp = data['external_temp'] if self._use_external_temp else data['room_temp']
-
         self._hysteresis = int(data['dif'])
         self._min_temp = int(data['svl'])
         self._max_temp = int(data['svh'])
+
         self._thermostat_target_temp = data['thermostat_temp']
+        self._thermostat_current_temp = data['external_temp'] if self._use_external_temp else data['room_temp']
 
         # Thermostat modes & status
         if data["power"] == BROADLINK_POWER_OFF:

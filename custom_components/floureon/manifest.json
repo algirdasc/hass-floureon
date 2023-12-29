@@ -5,6 +5,6 @@
   "dependencies": [],
   "codeowners": ["@algirdasc"],
   "issue_tracker": "https://github.com/algirdasc/hass-floureon/issues",
-  "requirements": ["pythoncrc", "broadlink>=0.15.0"],
-  "version": "1.0.0"
+  "requirements": ["pythoncrc", "broadlink>=0.18.3"],
+  "version": "1.0.1"
 }
