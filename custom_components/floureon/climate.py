@@ -49,6 +49,7 @@ from homeassistant.components.climate.const import (
 from homeassistant.const import (
     PRECISION_HALVES,
     PRECISION_WHOLE,
+    PRECISION_TENTHS,
     ATTR_TEMPERATURE,
     TEMP_CELSIUS,
     CONF_NAME
@@ -66,7 +67,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_UNIQUE_ID): cv.string,
     vol.Optional(CONF_SCHEDULE, default=DEFAULT_SCHEDULE): vol.All(int, vol.Range(min=0, max=2)),
     vol.Optional(CONF_USE_EXTERNAL_TEMP, default=DEFAULT_USE_EXTERNAL_TEMP): cv.boolean,
-    vol.Optional(CONF_PRECISION, default=DEFAULT_PRECISION): vol.In([PRECISION_HALVES, PRECISION_WHOLE]),
+    vol.Optional(CONF_PRECISION, default=DEFAULT_PRECISION): vol.In([PRECISION_HALVES, PRECISION_WHOLE, PRECISION_TENTHS]),
     vol.Optional(CONF_USE_COOLING, default=DEFAULT_USE_COOLING): cv.boolean
 })
 
