@@ -51,7 +51,7 @@ from homeassistant.const import (
     PRECISION_WHOLE,
     PRECISION_TENTHS,
     ATTR_TEMPERATURE,
-    TEMP_CELSIUS,
+    UnitOfTemperature,
     CONF_NAME
 )
 
@@ -125,7 +125,7 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
     @property
     def temperature_unit(self) -> str:
         """Return the unit of measurement."""
-        return TEMP_CELSIUS
+        return UnitOfTemperature.CELSIUS
 
     @property
     def hvac_mode(self) -> str:
@@ -192,13 +192,13 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
     @property
     def min_temp(self) -> float:
         """Return the minimum temperature."""
-        return self.get_converter()(self._min_temp, TEMP_CELSIUS,
+        return self.get_converter()(self._min_temp, UnitOfTemperature.CELSIUS,
                                     self.temperature_unit)
 
     @property
     def max_temp(self) -> float:
         """Return the maximum temperature."""
-        return self.get_converter()(self._max_temp, TEMP_CELSIUS,
+        return self.get_converter()(self._max_temp, UnitOfTemperature.CELSIUS,
                                     self.temperature_unit)
 
     @property
