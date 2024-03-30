@@ -78,6 +78,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 
 
 class FloureonClimate(ClimateEntity, RestoreEntity):
+    _enable_turn_on_off_backwards_compatibility = False
 
     def __init__(self, hass, config):
         self._hass = hass
@@ -178,7 +179,7 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
     @property
     def supported_features(self):
         """Return the list of supported features."""
-        return ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
+        return ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE | ClimateEntityFeature.TURN_OFF | ClimateEntityFeature.TURN_ON
 
     # Backward compatibility until 2023.4
     def get_converter(self):
