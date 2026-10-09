@@ -20,7 +20,7 @@ from broadlink.climate import hysen
 
 
 @pytest.fixture
-def integration(monkeypatch):
+def integration(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     """Provide only the Home Assistant interfaces used by these platforms."""
 
     class Entity:
@@ -85,7 +85,7 @@ def integration(monkeypatch):
 
 
 @pytest.fixture
-def device(monkeypatch):
+def device(monkeypatch: pytest.MonkeyPatch) -> hysen:
     device = hysen(('192.0.2.1', 80), bytes(6), 0x4EAD)
     monkeypatch.setattr(device, 'auth', AsyncMock(return_value=True))
     monkeypatch.setattr(device, 'send_request', AsyncMock())
@@ -94,7 +94,7 @@ def device(monkeypatch):
     return device
 
 
-def test_discovery_retries_network_timeouts(integration, device):
+def test_discovery_retries_network_timeouts(integration: SimpleNamespace, device: hysen) -> None:
     error = broadlink.exceptions.NetworkTimeoutError(-4000, 'Timeout')
     hello = cast(AsyncMock, broadlink.hello)
     hello.side_effect = [error, error, device]
@@ -103,7 +103,7 @@ def test_discovery_retries_network_timeouts(integration, device):
     assert hello.await_args_list == [call('192.0.2.1', timeout=3)] * 3
 
 
-def test_discovery_raises_after_three_timeouts(integration, device):
+def test_discovery_raises_after_three_timeouts(integration: SimpleNamespace, device: hysen) -> None:
     hello = cast(AsyncMock, broadlink.hello)
     hello.side_effect = broadlink.exceptions.NetworkTimeoutError(-4000, 'Timeout')
     thermostat = integration.thermostat.BroadlinkThermostat('192.0.2.1')
@@ -112,37 +112,41 @@ def test_discovery_raises_after_three_timeouts(integration, device):
     assert hello.await_count == 3
 
 
-def test_read_status_returns_device_data(integration, device, monkeypatch):
+def test_read_status_returns_device_data(
+    integration: SimpleNamespace, device: hysen, monkeypatch: pytest.MonkeyPatch
+) -> None:
     status = {'room_temp': 21.5}
     monkeypatch.setattr(device, 'get_full_status', AsyncMock(return_value=status))
     thermostat = integration.thermostat.BroadlinkThermostat('192.0.2.1')
     assert asyncio.run(thermostat.read_status()) == status
-    device.auth.assert_awaited_once()
-    device.aclose.assert_awaited_once()
+    cast(AsyncMock, device.auth).assert_awaited_once()
+    cast(AsyncMock, device.aclose).assert_awaited_once()
 
 
-def test_read_status_closes_device_on_failure(integration, device):
-    device.send_request.side_effect = OSError('Network failure')
+def test_read_status_closes_device_on_failure(integration: SimpleNamespace, device: hysen) -> None:
+    cast(AsyncMock, device.send_request).side_effect = OSError('Network failure')
     thermostat = integration.thermostat.BroadlinkThermostat('192.0.2.1')
     assert asyncio.run(thermostat.read_status()) is None
-    device.aclose.assert_awaited_once()
+    cast(AsyncMock, device.aclose).assert_awaited_once()
 
 
-def test_read_status_preserves_cancellation(integration, device):
-    device.send_request.side_effect = asyncio.CancelledError()
+def test_read_status_preserves_cancellation(integration: SimpleNamespace, device: hysen) -> None:
+    cast(AsyncMock, device.send_request).side_effect = asyncio.CancelledError()
     thermostat = integration.thermostat.BroadlinkThermostat('192.0.2.1')
     with pytest.raises(asyncio.CancelledError):
         asyncio.run(thermostat.read_status())
-    device.aclose.assert_awaited_once()
+    cast(AsyncMock, device.aclose).assert_awaited_once()
 
 
-def test_set_time_sends_current_time(integration, device, monkeypatch):
+def test_set_time_sends_current_time(
+    integration: SimpleNamespace, device: hysen, monkeypatch: pytest.MonkeyPatch
+) -> None:
     now = datetime(2026, 10, 9, 12, 34, 56)
     monkeypatch.setattr(integration.thermostat, 'datetime', SimpleNamespace(now=lambda: now))
     thermostat = integration.thermostat.BroadlinkThermostat('192.0.2.1')
     asyncio.run(thermostat.set_time())
-    device.send_request.assert_awaited_once_with([1, 16, 0, 8, 0, 2, 4, 12, 34, 56, 5])
-    device.aclose.assert_awaited_once()
+    cast(AsyncMock, device.send_request).assert_awaited_once_with([1, 16, 0, 8, 0, 2, 4, 12, 34, 56, 5])
+    cast(AsyncMock, device.aclose).assert_awaited_once()
 
 
 @pytest.mark.parametrize(
@@ -159,14 +163,16 @@ def test_set_time_sends_current_time(integration, device, monkeypatch):
         ),
     ],
 )
-def test_climate_commands_send_requests(integration, device, method, args, requests):
+def test_climate_commands_send_requests(
+    integration: SimpleNamespace, device: hysen, method: str, args: dict[str, str | float], requests: list[list[int]]
+) -> None:
     entity = integration.climate.FloureonClimate(
         Mock(), {'host': '192.0.2.1', 'schedule': 0, 'use_external_temp': True}
     )
     asyncio.run(getattr(entity, method)(**args))
-    assert device.send_request.await_args_list == [call(request) for request in requests]
-    device.auth.assert_awaited_once()
-    device.aclose.assert_awaited_once()
+    assert cast(AsyncMock, device.send_request).await_args_list == [call(request) for request in requests]
+    cast(AsyncMock, device.auth).assert_awaited_once()
+    cast(AsyncMock, device.aclose).assert_awaited_once()
 
 
 @pytest.mark.parametrize(
@@ -179,7 +185,14 @@ def test_climate_commands_send_requests(integration, device, method, args, reque
         ('async_turn_off', 17, 'max_temp', [[1, 6, 0, 2, 16, 1], [1, 6, 0, 1, 0, 34]]),
     ],
 )
-def test_switch_commands_send_requests(integration, device, method, off_mode, on_mode, requests):
+def test_switch_commands_send_requests(
+    integration: SimpleNamespace,
+    device: hysen,
+    method: str,
+    off_mode: str | float,
+    on_mode: str | float,
+    requests: list[list[int]],
+) -> None:
     entity = integration.switch.FloureonSwitch(
         Mock(),
         {
@@ -190,12 +203,12 @@ def test_switch_commands_send_requests(integration, device, method, off_mode, on
         },
     )
     asyncio.run(getattr(entity, method)())
-    assert device.send_request.await_args_list == [call(request) for request in requests]
-    device.aclose.assert_awaited_once()
+    assert cast(AsyncMock, device.send_request).await_args_list == [call(request) for request in requests]
+    cast(AsyncMock, device.aclose).assert_awaited_once()
 
 
 @pytest.mark.parametrize('platform,class_name', [('climate', 'FloureonClimate'), ('switch', 'FloureonSwitch')])
-def test_entity_startup_sets_time(integration, device, platform, class_name):
+def test_entity_startup_sets_time(integration: SimpleNamespace, device: hysen, platform: str, class_name: str) -> None:
     entity = getattr(getattr(integration, platform), class_name)(
         Mock(),
         {
@@ -205,12 +218,16 @@ def test_entity_startup_sets_time(integration, device, platform, class_name):
         },
     )
     asyncio.run(entity.async_added_to_hass())
-    assert device.send_request.await_args.args[0][:7] == [1, 16, 0, 8, 0, 2, 4]
-    device.aclose.assert_awaited_once()
+    request = cast(AsyncMock, device.send_request).await_args
+    assert request is not None
+    assert request.args[0][:7] == [1, 16, 0, 8, 0, 2, 4]
+    cast(AsyncMock, device.aclose).assert_awaited_once()
 
 
 @pytest.mark.parametrize('platform,class_name', [('climate', 'FloureonClimate'), ('switch', 'FloureonSwitch')])
-def test_entity_polling_updates_temperature(integration, device, monkeypatch, platform, class_name):
+def test_entity_polling_updates_temperature(
+    integration: SimpleNamespace, device: hysen, monkeypatch: pytest.MonkeyPatch, platform: str, class_name: str
+) -> None:
     monkeypatch.setattr(
         device,
         'get_full_status',
@@ -241,4 +258,4 @@ def test_entity_polling_updates_temperature(integration, device, monkeypatch, pl
     asyncio.run(entity.async_update())
     assert entity._thermostat_current_temp == 21.5
     assert entity._thermostat_target_temp == 22
-    device.aclose.assert_awaited_once()
+    cast(AsyncMock, device.aclose).assert_awaited_once()

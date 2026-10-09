@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING, cast
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
+from broadlink.climate import hysen
 from homeassistant.components.climate.const import DEFAULT_MAX_TEMP, DEFAULT_MIN_TEMP
 from homeassistant.components.switch import PLATFORM_SCHEMA, SwitchEntity
 from homeassistant.const import CONF_NAME, STATE_OFF, STATE_ON, STATE_UNAVAILABLE
@@ -20,6 +24,11 @@ from custom_components.floureon import (
     DEFAULT_USE_EXTERNAL_TEMP,
     BroadlinkThermostat,
 )
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+    from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,13 +58,18 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
+async def async_setup_platform(
+    hass: HomeAssistant,
+    config: ConfigType,
+    async_add_entities: AddEntitiesCallback,
+    discovery_info: DiscoveryInfoType | None = None,
+) -> None:
     """Set up the platform."""
     async_add_entities([FloureonSwitch(hass, config)])
 
 
 class FloureonSwitch(SwitchEntity, RestoreEntity):
-    def __init__(self, hass, config):
+    def __init__(self, hass: HomeAssistant, config: ConfigType) -> None:
         self._hass = hass
         self._thermostat = BroadlinkThermostat(config.get(CONF_HOST))
 
@@ -117,9 +131,10 @@ class FloureonSwitch(SwitchEntity, RestoreEntity):
         # Set thermostat time
         await self._thermostat.set_time()
 
-    async def async_turn_on(self, **kwargs) -> None:
+    async def async_turn_on(self, **kwargs: object) -> None:
         """Turn  the entity on"""
         async with await self._thermostat.device() as device:
+            device = cast(hysen, device)
             if await device.auth():
                 await device.set_power(BROADLINK_POWER_ON)
                 await device.set_mode(BROADLINK_MODE_MANUAL, 0, self.thermostat_get_sensor())
@@ -130,9 +145,10 @@ class FloureonSwitch(SwitchEntity, RestoreEntity):
         self._state = STATE_ON
         await self.async_update_ha_state()
 
-    async def async_turn_off(self, **kwargs) -> None:
+    async def async_turn_off(self, **kwargs: object) -> None:
         """Turn the entity off"""
         async with await self._thermostat.device() as device:
+            device = cast(hysen, device)
             if await device.auth():
                 if self._turn_off_mode == BROADLINK_TURN_OFF:
                     await device.set_power(BROADLINK_POWER_OFF)

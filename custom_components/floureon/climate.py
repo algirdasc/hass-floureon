@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 import logging
-from typing import List, Optional
+from collections.abc import Callable
+from typing import TYPE_CHECKING, List, Optional, cast
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
+from broadlink.climate import hysen
 from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity, ClimateEntityFeature, HVACAction, HVACMode
 
 # Unused until HA 2023.4
@@ -41,6 +45,11 @@ from custom_components.floureon import (
     BroadlinkThermostat,
 )
 
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+    from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+
 _LOGGER = logging.getLogger(__name__)
 
 PARALLEL_UPDATES = 0
@@ -60,7 +69,12 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
+async def async_setup_platform(
+    hass: HomeAssistant,
+    config: ConfigType,
+    async_add_entities: AddEntitiesCallback,
+    discovery_info: DiscoveryInfoType | None = None,
+) -> None:
     """Set up the generic thermostat platform."""
     async_add_entities([FloureonClimate(hass, config)])
 
@@ -68,7 +82,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 class FloureonClimate(ClimateEntity, RestoreEntity):
     _enable_turn_on_off_backwards_compatibility = False
 
-    def __init__(self, hass, config):
+    def __init__(self, hass: HomeAssistant, config: ConfigType) -> None:
         self._hass = hass
         self._thermostat = BroadlinkThermostat(config.get(CONF_HOST))
 
@@ -165,7 +179,7 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
         return self._thermostat_target_temp
 
     @property
-    def supported_features(self):
+    def supported_features(self) -> ClimateEntityFeature:
         """Return the list of supported features."""
         return (
             ClimateEntityFeature.TARGET_TEMPERATURE
@@ -175,7 +189,7 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
         )
 
     # Backward compatibility until 2023.4
-    def get_converter(self):
+    def get_converter(self) -> Callable[[float, str, str], float]:
         try:
             from homeassistant.util.unit_conversion import TemperatureConverter
 
@@ -222,13 +236,14 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
                 if param in last_state.attributes:
                     setattr(self, '_{0}'.format(param), last_state.attributes[param])
 
-    async def async_set_temperature(self, **kwargs) -> None:
+    async def async_set_temperature(self, **kwargs: float) -> None:
         """Set new target temperature."""
         temperature = kwargs.get(ATTR_TEMPERATURE)
         if temperature is not None:
             target_temp = float(temperature)
 
             async with await self._thermostat.device() as device:
+                device = cast(hysen, device)
                 if await device.auth():
                     await device.set_mode(
                         BROADLINK_MODE_MANUAL, self._thermostat_loop_mode, self.thermostat_get_sensor()
@@ -243,9 +258,10 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
 
         self.async_write_ha_state()
 
-    async def async_set_hvac_mode(self, hvac_mode) -> None:
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set operation mode."""
         async with await self._thermostat.device() as device:
+            device = cast(hysen, device)
             if await device.auth():
                 if hvac_mode == HVACMode.OFF:
                     await device.set_power(BROADLINK_POWER_OFF)
@@ -262,11 +278,12 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
 
         self.async_write_ha_state()
 
-    async def async_set_preset_mode(self, preset_mode) -> None:
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode."""
         self._preset_mode = preset_mode
 
         async with await self._thermostat.device() as device:
+            device = cast(hysen, device)
             if await device.auth():
                 await device.set_power(BROADLINK_POWER_ON)
                 await device.set_mode(BROADLINK_MODE_MANUAL, self._thermostat_loop_mode, self.thermostat_get_sensor())
