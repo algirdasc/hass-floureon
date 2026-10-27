@@ -1,0 +1,104 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add Floureon thermostat",
+        "description": "Enter the IP address or hostname of the WiFi thermostat. It must be reachable on your network.",
+        "data": {
+          "host": "Host / IP address",
+          "name": "Name",
+          "entity_type": "Set up as"
+        },
+        "data_description": {
+          "host": "Preferably use a DHCP reservation (fixed IP) in your router.",
+          "entity_type": "Thermostat (climate) offers modes and target temperature. Switch is meant to be used with the generic thermostat."
+        }
+      },
+      "climate": {
+        "title": "Thermostat settings",
+        "data": {
+          "schedule": "Weekly schedule",
+          "use_external_temp": "Use external temperature sensor",
+          "precision": "Temperature precision",
+          "use_cooling": "Thermostat has cooling function"
+        }
+      },
+      "switch": {
+        "title": "Switch settings",
+        "description": "The temperature fields are only used when the respective mode is \"Custom temperature\".",
+        "data": {
+          "use_external_temp": "Use external temperature sensor",
+          "turn_off_mode": "Turn off by",
+          "turn_off_temp": "Temperature when turned off",
+          "turn_on_mode": "Turn on by",
+          "turn_on_temp": "Temperature when turned on"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to the thermostat. Check host and network.",
+      "unknown": "Unexpected error. See the log for details."
+    },
+    "abort": {
+      "already_configured": "This thermostat is already configured. Its IP address was updated if needed."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Thermostat settings",
+        "data": {
+          "schedule": "Weekly schedule",
+          "use_external_temp": "Use external temperature sensor",
+          "precision": "Temperature precision",
+          "use_cooling": "Thermostat has cooling function",
+          "turn_off_mode": "Turn off by",
+          "turn_off_temp": "Temperature when turned off",
+          "turn_on_mode": "Turn on by",
+          "turn_on_temp": "Temperature when turned on"
+        }
+      }
+    }
+  },
+  "selector": {
+    "entity_type": {
+      "options": {
+        "climate": "Thermostat (climate)",
+        "switch": "Switch"
+      }
+    },
+    "schedule": {
+      "options": {
+        "0": "Mon–Fri, Sat+Sun (12345,67)",
+        "1": "Mon–Sat, Sun (123456,7)",
+        "2": "All days the same (1234567)"
+      }
+    },
+    "precision": {
+      "options": {
+        "0.1": "0.1 °C",
+        "0.5": "0.5 °C",
+        "1.0": "1 °C"
+      }
+    },
+    "turn_off_mode": {
+      "options": {
+        "min_temp": "Set minimum temperature",
+        "turn_off": "Turn thermostat off",
+        "custom": "Custom temperature"
+      }
+    },
+    "turn_on_mode": {
+      "options": {
+        "max_temp": "Set maximum temperature",
+        "custom": "Custom temperature"
+      }
+    }
+  },
+  "services": {
+    "set_time": {
+      "name": "Set time",
+      "description": "Synchronise the thermostat clock with Home Assistant time."
+    }
+  }
+}
