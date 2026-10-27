@@ -22,27 +22,28 @@ from custom_components.floureon import (
     CONF_UNIQUE_ID,
     CONF_USE_EXTERNAL_TEMP,
     DEFAULT_USE_EXTERNAL_TEMP,
+    BROADLINK_MAX_TEMP,
+    BROADLINK_MIN_TEMP,
+    BROADLINK_TURN_OFF,
+    CONF_TURN_OFF_MODE,
+    CONF_TURN_ON_MODE,
+    DEFAULT_TURN_OFF_MODE,
+    DEFAULT_TURN_ON_MODE,
     BroadlinkThermostat,
+    device_info_for,
+    entry_to_config,
+    register_set_time_service,
 )
 
 if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
     from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 _LOGGER = logging.getLogger(__name__)
 
-BROADLINK_TURN_OFF = 'turn_off'
-BROADLINK_MIN_TEMP = 'min_temp'
-BROADLINK_MAX_TEMP = 'max_temp'
-
 PARALLEL_UPDATES = 0
-
-DEFAULT_TURN_OFF_MODE = BROADLINK_MIN_TEMP
-DEFAULT_TURN_ON_MODE = BROADLINK_MAX_TEMP
-
-CONF_TURN_OFF_MODE = 'turn_off_mode'
-CONF_TURN_ON_MODE = 'turn_on_mode'
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -66,10 +67,21 @@ async def async_setup_platform(
 ) -> None:
     """Set up the platform."""
     async_add_entities([FloureonSwitch(hass, config)])
+    register_set_time_service()
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up the platform from a config entry (UI)."""
+    async_add_entities([FloureonSwitch(hass, entry_to_config(entry), entry)])
+    register_set_time_service()
 
 
 class FloureonSwitch(SwitchEntity, RestoreEntity):
-    def __init__(self, hass: HomeAssistant, config: ConfigType) -> None:
+    def __init__(self, hass: HomeAssistant, config: ConfigType, entry: ConfigEntry | None = None) -> None:
         self._hass = hass
         self._thermostat = BroadlinkThermostat(config.get(CONF_HOST))
 
@@ -95,8 +107,16 @@ class FloureonSwitch(SwitchEntity, RestoreEntity):
         self._thermostat_current_temp = None
         self._thermostat_target_temp = None
 
-        self._attr_name = self._name
-        self._attr_unique_id = config.get(CONF_UNIQUE_ID)
+        if entry is not None:
+            # Created via UI: entity is named after the device and attached to it
+            self._name = None
+            self._attr_name = None
+            self._attr_has_entity_name = True
+            self._attr_unique_id = entry.unique_id
+            self._attr_device_info = device_info_for(entry)
+        else:
+            self._attr_name = self._name
+            self._attr_unique_id = config.get(CONF_UNIQUE_ID)
 
         self._state = STATE_UNAVAILABLE
 
@@ -105,7 +125,7 @@ class FloureonSwitch(SwitchEntity, RestoreEntity):
         return BROADLINK_SENSOR_EXTERNAL if self._use_external_temp is True else BROADLINK_SENSOR_INTERNAL
 
     @property
-    def name(self) -> str:
+    def name(self) -> str | None:
         """Return the name of the device if any."""
         return self._name
 
@@ -129,6 +149,10 @@ class FloureonSwitch(SwitchEntity, RestoreEntity):
         await super().async_added_to_hass()
 
         # Set thermostat time
+        await self._thermostat.set_time()
+
+    async def async_set_time(self) -> None:
+        """Sync thermostat clock with Home Assistant time."""
         await self._thermostat.set_time()
 
     async def async_turn_on(self, **kwargs: object) -> None:
