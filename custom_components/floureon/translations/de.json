@@ -1,0 +1,104 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Floureon-Thermostat hinzufügen",
+        "description": "Gib die IP-Adresse oder den Hostnamen des WLAN-Thermostats ein. Das Thermostat muss im Netzwerk erreichbar sein.",
+        "data": {
+          "host": "Host / IP-Adresse",
+          "name": "Name",
+          "entity_type": "Als was einrichten?"
+        },
+        "data_description": {
+          "host": "Am besten per DHCP-Reservierung (feste IP) im Router hinterlegen.",
+          "entity_type": "Thermostat (Klima) bietet Modi und Zieltemperatur. Schalter ist für die Nutzung mit dem generischen Thermostat gedacht."
+        }
+      },
+      "climate": {
+        "title": "Thermostat-Einstellungen",
+        "data": {
+          "schedule": "Wochenplan",
+          "use_external_temp": "Externen Temperaturfühler verwenden",
+          "precision": "Temperaturgenauigkeit",
+          "use_cooling": "Thermostat hat Kühlfunktion"
+        }
+      },
+      "switch": {
+        "title": "Schalter-Einstellungen",
+        "description": "Die Temperaturfelder werden nur verwendet, wenn der jeweilige Modus „Eigene Temperatur“ ist.",
+        "data": {
+          "use_external_temp": "Externen Temperaturfühler verwenden",
+          "turn_off_mode": "Ausschalten durch",
+          "turn_off_temp": "Temperatur beim Ausschalten",
+          "turn_on_mode": "Einschalten durch",
+          "turn_on_temp": "Temperatur beim Einschalten"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung zum Thermostat fehlgeschlagen. Prüfe Host und Netzwerk.",
+      "unknown": "Unerwarteter Fehler. Details stehen im Log."
+    },
+    "abort": {
+      "already_configured": "Dieses Thermostat ist bereits eingerichtet. Die IP-Adresse wurde bei Bedarf aktualisiert."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Thermostat-Einstellungen",
+        "data": {
+          "schedule": "Wochenplan",
+          "use_external_temp": "Externen Temperaturfühler verwenden",
+          "precision": "Temperaturgenauigkeit",
+          "use_cooling": "Thermostat hat Kühlfunktion",
+          "turn_off_mode": "Ausschalten durch",
+          "turn_off_temp": "Temperatur beim Ausschalten",
+          "turn_on_mode": "Einschalten durch",
+          "turn_on_temp": "Temperatur beim Einschalten"
+        }
+      }
+    }
+  },
+  "selector": {
+    "entity_type": {
+      "options": {
+        "climate": "Thermostat (Klima)",
+        "switch": "Schalter"
+      }
+    },
+    "schedule": {
+      "options": {
+        "0": "Mo–Fr, Sa+So (12345,67)",
+        "1": "Mo–Sa, So (123456,7)",
+        "2": "Alle Tage gleich (1234567)"
+      }
+    },
+    "precision": {
+      "options": {
+        "0.1": "0,1 °C",
+        "0.5": "0,5 °C",
+        "1.0": "1 °C"
+      }
+    },
+    "turn_off_mode": {
+      "options": {
+        "min_temp": "Minimaltemperatur setzen",
+        "turn_off": "Thermostat ausschalten",
+        "custom": "Eigene Temperatur"
+      }
+    },
+    "turn_on_mode": {
+      "options": {
+        "max_temp": "Maximaltemperatur setzen",
+        "custom": "Eigene Temperatur"
+      }
+    }
+  },
+  "services": {
+    "set_time": {
+      "name": "Uhrzeit synchronisieren",
+      "description": "Stellt die Uhr des Thermostats auf die Home-Assistant-Zeit."
+    }
+  }
+}

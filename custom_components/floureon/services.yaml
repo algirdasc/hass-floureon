@@ -1,0 +1,6 @@
+set_time:
+  name: Set time
+  description: Synchronise the thermostat clock with Home Assistant time.
+  target:
+    entity:
+      integration: floureon

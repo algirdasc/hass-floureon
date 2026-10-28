@@ -43,9 +43,13 @@ from custom_components.floureon import (
     DEFAULT_USE_COOLING,
     DEFAULT_USE_EXTERNAL_TEMP,
     BroadlinkThermostat,
+    device_info_for,
+    entry_to_config,
+    register_set_time_service,
 )
 
 if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
     from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
@@ -77,12 +81,23 @@ async def async_setup_platform(
 ) -> None:
     """Set up the generic thermostat platform."""
     async_add_entities([FloureonClimate(hass, config)])
+    register_set_time_service()
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up the platform from a config entry (UI)."""
+    async_add_entities([FloureonClimate(hass, entry_to_config(entry), entry)])
+    register_set_time_service()
 
 
 class FloureonClimate(ClimateEntity, RestoreEntity):
     _enable_turn_on_off_backwards_compatibility = False
 
-    def __init__(self, hass: HomeAssistant, config: ConfigType) -> None:
+    def __init__(self, hass: HomeAssistant, config: ConfigType, entry: ConfigEntry | None = None) -> None:
         self._hass = hass
         self._thermostat = BroadlinkThermostat(config.get(CONF_HOST))
 
@@ -108,15 +123,23 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
         self._thermostat_current_temp = None
         self._thermostat_target_temp = None
 
-        self._attr_name = self._name
-        self._attr_unique_id = config.get(CONF_UNIQUE_ID)
+        if entry is not None:
+            # Created via UI: entity is named after the device and attached to it
+            self._name = None
+            self._attr_name = None
+            self._attr_has_entity_name = True
+            self._attr_unique_id = entry.unique_id
+            self._attr_device_info = device_info_for(entry)
+        else:
+            self._attr_name = self._name
+            self._attr_unique_id = config.get(CONF_UNIQUE_ID)
 
     def thermostat_get_sensor(self) -> int:
         """Get sensor to use"""
         return BROADLINK_SENSOR_EXTERNAL if self._use_external_temp is True else BROADLINK_SENSOR_INTERNAL
 
     @property
-    def name(self) -> str:
+    def name(self) -> str | None:
         """Return thermostat name"""
         return self._name
 
@@ -235,6 +258,10 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
             for param in ['away_set_point', 'manual_set_point']:
                 if param in last_state.attributes:
                     setattr(self, '_{0}'.format(param), last_state.attributes[param])
+
+    async def async_set_time(self) -> None:
+        """Sync thermostat clock with Home Assistant time."""
+        await self._thermostat.set_time()
 
     async def async_set_temperature(self, **kwargs: float) -> None:
         """Set new target temperature."""

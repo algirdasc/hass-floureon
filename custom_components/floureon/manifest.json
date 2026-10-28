@@ -1,10 +1,16 @@
 {
   "domain": "floureon",
   "name": "Floureon Thermostat",
+  "config_flow": true,
   "documentation": "https://github.com/algirdasc/hass-floureon",
   "dependencies": [],
-  "codeowners": ["@algirdasc"],
+  "codeowners": [
+    "@algirdasc"
+  ],
   "issue_tracker": "https://github.com/algirdasc/hass-floureon/issues",
-  "requirements": ["pythoncrc", "python-broadlink==1.0.6"],
+  "requirements": [
+    "pythoncrc",
+    "python-broadlink==1.0.6"
+  ],
   "version": "1.0.2"
 }
