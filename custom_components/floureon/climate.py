@@ -366,11 +366,8 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
 
         # Thermostat action
         if data["power"] == BROADLINK_POWER_ON and data["active"] == BROADLINK_ACTIVE:
-            if self._use_cooling is True:
-                if self._thermostat_target_temp + self._hysteresis < self._thermostat_current_temp:
-                    self._thermostat_current_action = HVACAction.COOLING
-                else:
-                    self._thermostat_current_action = HVACAction.HEATING
+            if self._use_cooling is True and data.get("heating_cooling", 0) == 1:
+                self._thermostat_current_action = HVACAction.COOLING
             else:
                 self._thermostat_current_action = HVACAction.HEATING
         elif data["power"] == BROADLINK_POWER_ON and data["active"] == BROADLINK_IDLE:
