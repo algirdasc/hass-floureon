@@ -8,6 +8,8 @@ as well as improve motivation and helps me understand, that this project is usef
 # Intro
 Component for controlling Floureon or other chinese-based WiFi smart thermostat (Beok and others). Climate component will have 3 modes: "auto" (in which will used thermostat's internal schedule), "heat (which is "manual" mode) and "off". Also, while in "heat" mode it is possible to use preset "away". Changing mode to other than "heat" will set preset to "none".
 
+Setting a target temperature while in "auto" mode does not leave the schedule: the thermostat keeps the new temperature only until the next schedule period starts (the same as changing the temperature on the thermostat itself or in its app). Home Assistant shows "heat" during that time and "auto" again afterwards. To keep a temperature permanently, switch to "heat" first, or call `climate.set_temperature` with `hvac_mode: heat`.
+
 If you want to use custom or more advanced control, you should use switch component and generic thermostat in Home Assistant instead. See below for configuration.
 
 # Setup
