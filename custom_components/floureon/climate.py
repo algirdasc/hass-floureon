@@ -11,7 +11,13 @@ from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity, Cli
 
 # Unused until HA 2023.4
 # from homeassistant.util.unit_conversion import TemperatureConverter
-from homeassistant.components.climate.const import DEFAULT_MAX_TEMP, DEFAULT_MIN_TEMP, PRESET_AWAY, PRESET_NONE
+from homeassistant.components.climate.const import (
+    ATTR_HVAC_MODE,
+    DEFAULT_MAX_TEMP,
+    DEFAULT_MIN_TEMP,
+    PRESET_AWAY,
+    PRESET_NONE,
+)
 from homeassistant.const import (
     ATTR_TEMPERATURE,
     CONF_NAME,
@@ -262,8 +268,13 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
         """Sync thermostat clock with Home Assistant time."""
         await self._thermostat.set_time()
 
-    async def async_set_temperature(self, **kwargs: float) -> None:
+    async def async_set_temperature(self, **kwargs: float | HVACMode) -> None:
         """Set new target temperature."""
+        # climate.set_temperature may carry an hvac_mode, e.g. `heat` to leave the week program for good
+        hvac_mode = kwargs.get(ATTR_HVAC_MODE)
+        if hvac_mode is not None:
+            await self.async_set_hvac_mode(hvac_mode)
+
         temperature = kwargs.get(ATTR_TEMPERATURE)
         if temperature is not None:
             target_temp = float(temperature)
@@ -271,9 +282,9 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
             async with await self._thermostat.device() as device:
                 device = cast(hysen, device)
                 if await device.auth():
-                    await device.set_mode(
-                        BROADLINK_MODE_MANUAL, self._thermostat_loop_mode, self.thermostat_get_sensor()
-                    )
+                    # Only send the temperature: in auto mode the thermostat then keeps its week program and
+                    # treats the new target as a temporary override until the next period, like the Beok app does.
+                    # In manual mode it simply becomes the new manual target.
                     await device.set_temp(target_temp)
 
                     # Save temperatures for future use

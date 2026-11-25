@@ -55,6 +55,7 @@ def integration(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
             ClimateEntityFeature=SimpleNamespace(TARGET_TEMPERATURE=1, PRESET_MODE=2, TURN_OFF=4, TURN_ON=8),
         ),
         'homeassistant.components.climate.const': dict(
+            ATTR_HVAC_MODE='hvac_mode',
             PRESET_NONE='none',
             PRESET_AWAY='away',
             DEFAULT_MIN_TEMP=7,
@@ -162,7 +163,7 @@ def test_set_time_sends_current_time(
 @pytest.mark.parametrize(
     'method,args,requests',
     [
-        ('async_set_temperature', {'temperature': 21.5}, [[1, 6, 0, 2, 16, 1], [1, 6, 0, 1, 0, 43]]),
+        ('async_set_temperature', {'temperature': 21.5}, [[1, 6, 0, 1, 0, 43]]),
         ('async_set_hvac_mode', {'hvac_mode': 'off'}, [[1, 6, 0, 0, 0, 0]]),
         ('async_set_hvac_mode', {'hvac_mode': 'auto'}, [[1, 6, 0, 0, 0, 1], [1, 6, 0, 2, 17, 1]]),
         ('async_set_hvac_mode', {'hvac_mode': 'heat'}, [[1, 6, 0, 0, 0, 1], [1, 6, 0, 2, 16, 1]]),
@@ -304,3 +305,40 @@ def test_entity_polling_updates_temperature(
     assert entity._thermostat_current_temp == 21.5
     assert entity._thermostat_target_temp == 22
     cast(AsyncMock, device.aclose).assert_awaited_once()
+
+
+def test_climate_reports_heat_while_auto_is_overridden(
+    integration: SimpleNamespace, device: hysen, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Status of a Beok in auto (mode byte 0x33) after a temperature was set: temp_manual stays 1 until the next period
+    status = {
+        'room_temp': 20,
+        'external_temp': 0,
+        'thermostat_temp': 22,
+        'dif': 1,
+        'svl': 5,
+        'svh': 35,
+        'power': 1,
+        'active': 1,
+        'auto_mode': 3,
+        'temp_manual': 1,
+    }
+    monkeypatch.setattr(device, 'get_full_status', AsyncMock(return_value=status))
+    entity = integration.climate.FloureonClimate(Mock(), {'host': '192.0.2.1', 'schedule': 2})
+    asyncio.run(entity.async_update())
+    assert entity.hvac_mode == 'heat'
+    status['temp_manual'] = 0
+    asyncio.run(entity.async_update())
+    assert entity.hvac_mode == 'auto'
+
+
+def test_climate_set_temperature_applies_hvac_mode(integration: SimpleNamespace, device: hysen) -> None:
+    entity = integration.climate.FloureonClimate(
+        Mock(), {'host': '192.0.2.1', 'schedule': 0, 'use_external_temp': True}
+    )
+    asyncio.run(entity.async_set_temperature(temperature=21.5, hvac_mode='heat'))
+    assert cast(AsyncMock, device.send_request).await_args_list == [
+        call([1, 6, 0, 0, 0, 1]),
+        call([1, 6, 0, 2, 16, 1]),
+        call([1, 6, 0, 1, 0, 43]),
+    ]
