@@ -41,6 +41,7 @@ def integration(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
         STATE_OFF='off',
         STATE_UNAVAILABLE='unavailable',
         UnitOfTemperature=SimpleNamespace(CELSIUS='°C'),
+        Platform=SimpleNamespace(CLIMATE='climate', SWITCH='switch'),
     )
     modules = {
         'homeassistant': {},
@@ -60,7 +61,16 @@ def integration(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
             DEFAULT_MAX_TEMP=35,
         ),
         'homeassistant.components.switch': dict(SwitchEntity=Entity, PLATFORM_SCHEMA=vol.Schema({})),
+        'homeassistant.exceptions': dict(HomeAssistantError=Exception),
         'homeassistant.helpers': {},
+        'homeassistant.helpers.entity_platform': dict(async_get_current_platform=Mock()),
+        'homeassistant.helpers.device_registry': dict(
+            CONNECTION_NETWORK_MAC='mac',
+            DeviceInfo=dict,
+            format_mac=lambda mac: mac.lower(),
+        ),
+        'homeassistant.util': {},
+        'homeassistant.util.dt': dict(now=datetime.now),
         'homeassistant.helpers.restore_state': dict(RestoreEntity=RestoreEntity),
         'homeassistant.helpers.config_validation': dict(string=str, boolean=bool),
     }
@@ -142,7 +152,7 @@ def test_set_time_sends_current_time(
     integration: SimpleNamespace, device: hysen, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     now = datetime(2026, 10, 9, 12, 34, 56)
-    monkeypatch.setattr(integration.thermostat, 'datetime', SimpleNamespace(now=lambda: now))
+    monkeypatch.setattr(integration.thermostat.dt_util, 'now', lambda: now)
     thermostat = integration.thermostat.BroadlinkThermostat('192.0.2.1')
     asyncio.run(thermostat.set_time())
     cast(AsyncMock, device.send_request).assert_awaited_once_with([1, 16, 0, 8, 0, 2, 4, 12, 34, 56, 5])
