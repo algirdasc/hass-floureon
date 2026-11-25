@@ -25,7 +25,6 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from custom_components.floureon import (
     BROADLINK_ACTIVE,
     BROADLINK_IDLE,
-    BROADLINK_MODE_AUTO,
     BROADLINK_MODE_MANUAL,
     BROADLINK_POWER_OFF,
     BROADLINK_POWER_ON,
@@ -295,8 +294,11 @@ class FloureonClimate(ClimateEntity, RestoreEntity):
                 else:
                     await device.set_power(BROADLINK_POWER_ON)
                     if hvac_mode == HVACMode.AUTO:
+                        # The low nibble of the mode byte is 0 for manual, otherwise it repeats the loop mode
+                        # (1 = 12345,67, 2 = 123456,7, 3 = 1234567), as the Beok app writes it. With a fixed 1 and
+                        # loop 1234567 (0x31) a Beok still runs the weekend periods on Saturday and Sunday.
                         await device.set_mode(
-                            BROADLINK_MODE_AUTO, self._thermostat_loop_mode, self.thermostat_get_sensor()
+                            self._thermostat_loop_mode + 1, self._thermostat_loop_mode, self.thermostat_get_sensor()
                         )
                     elif hvac_mode == HVACMode.HEAT or hvac_mode == HVACMode.HEAT_COOL:
                         await device.set_mode(

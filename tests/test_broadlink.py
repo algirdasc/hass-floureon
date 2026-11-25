@@ -185,6 +185,41 @@ def test_climate_commands_send_requests(
     cast(AsyncMock, device.aclose).assert_awaited_once()
 
 
+@pytest.mark.parametrize('schedule,mode_byte', [(0, 0x11), (1, 0x22), (2, 0x33)])
+def test_climate_auto_mode_repeats_loop_mode(
+    integration: SimpleNamespace, device: hysen, schedule: int, mode_byte: int
+) -> None:
+    # Mode bytes the Beok app writes for auto with loop 12345,67 / 123456,7 / 1234567
+    entity = integration.climate.FloureonClimate(Mock(), {'host': '192.0.2.1', 'schedule': schedule})
+    asyncio.run(entity.async_set_hvac_mode('auto'))
+    assert cast(AsyncMock, device.send_request).await_args_list == [
+        call([1, 6, 0, 0, 0, 1]),
+        call([1, 6, 0, 2, mode_byte, 0]),
+    ]
+
+
+@pytest.mark.parametrize('auto_mode,hvac_mode', [(0, 'heat'), (1, 'auto'), (2, 'auto'), (3, 'auto')])
+def test_climate_polling_reads_any_non_zero_mode_as_auto(
+    integration: SimpleNamespace, device: hysen, monkeypatch: pytest.MonkeyPatch, auto_mode: int, hvac_mode: str
+) -> None:
+    status = {
+        'room_temp': 20,
+        'external_temp': 0,
+        'thermostat_temp': 22,
+        'dif': 1,
+        'svl': 5,
+        'svh': 35,
+        'power': 1,
+        'active': 0,
+        'auto_mode': auto_mode,
+        'temp_manual': 0,
+    }
+    monkeypatch.setattr(device, 'get_full_status', AsyncMock(return_value=status))
+    entity = integration.climate.FloureonClimate(Mock(), {'host': '192.0.2.1', 'schedule': 2})
+    asyncio.run(entity.async_update())
+    assert entity.hvac_mode == hvac_mode
+
+
 @pytest.mark.parametrize(
     'method,off_mode,on_mode,requests',
     [
